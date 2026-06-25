@@ -15,8 +15,8 @@ const (
 
 type Container struct {
 	ID        string
-	DockerID  string
 	UserID    string
+	DockerID  string
 	Name      string
 	Image     string
 	Status    ContainerStatus
