@@ -1,0 +1,23 @@
+# Binary
+/bin/
+*.exe
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+
+# Swagger generated
+docs/Swagger.json
+docs/Swagger.yaml
+docs/docs.go
+
+# Test coverage
+*.out
+coverage.html
+
+# OS
+.DS_Store
