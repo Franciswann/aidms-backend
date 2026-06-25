@@ -16,10 +16,10 @@ const (
 type Container struct {
 	ID        string
 	DockerID  string
+	UserID    string
 	Name      string
 	Image     string
 	Status    ContainerStatus
-	UserID    string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
