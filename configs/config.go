@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -33,6 +34,11 @@ func Load() *Config {
 		ServerPort: getEnv("SERVER_PORT", "8080"),
 		JWTSecret:  mustGetEnv("JWT_SECRET"),
 	}
+}
+
+func (c *Config) DSN() string {
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName)
 }
 
 func mustGetEnv(key string) string {
