@@ -33,3 +33,16 @@ func (f *FileModel) ToDomain() *entity.File {
 		UpdatedAt: f.UpdatedAt,
 	}
 }
+
+func FileFromDomain(f *entity.File) *FileModel {
+	return &FileModel{
+		ID:        f.ID,
+		UserID:    f.UserID,
+		Name:      f.Name,
+		Path:      f.Path,
+		MimeType:  f.MimeType,
+		Size:      f.Size,
+		CreatedAt: f.CreatedAt,
+		UpdatedAt: f.UpdatedAt,
+	}
+}

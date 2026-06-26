@@ -33,3 +33,16 @@ func (j *JobModel) ToDomain() *entity.Job {
 		UpdatedAt:    j.UpdatedAt,
 	}
 }
+
+func JobFromDomain(j *entity.Job) *JobModel {
+	return &JobModel{
+		ID:           j.ID,
+		UserID:       j.UserID,
+		ContainerID:  j.ContainerID,
+		ErrorMessage: j.ErrorMessage,
+		Status:       j.Status,
+		Action:       j.Action,
+		CreatedAt:    j.CreatedAt,
+		UpdatedAt:    j.UpdatedAt,
+	}
+}

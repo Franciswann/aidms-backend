@@ -33,3 +33,16 @@ func (c *ContainerModel) ToDomain() *entity.Container {
 		UpdatedAt: c.UpdatedAt,
 	}
 }
+
+func ContainerFromDomain(c *entity.Container) *ContainerModel {
+	return &ContainerModel{
+		ID:        c.ID,
+		UserID:    c.UserID,
+		DockerID:  c.DockerID,
+		Name:      c.Name,
+		Image:     c.Image,
+		Status:    c.Status,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
+}

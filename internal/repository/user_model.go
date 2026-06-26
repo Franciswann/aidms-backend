@@ -27,3 +27,13 @@ func (u *UserModel) ToDomain() *entity.User {
 		UpdatedAt:      u.UpdatedAt,
 	}
 }
+
+func UserFromDomain(u *entity.User) *UserModel {
+	return &UserModel{
+		ID:             u.ID,
+		Email:          u.Email,
+		HashedPassword: u.HashedPassword,
+		CreatedAt:      u.CreatedAt,
+		UpdatedAt:      u.UpdatedAt,
+	}
+}
