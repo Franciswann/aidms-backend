@@ -11,7 +11,7 @@ type JobRepository struct {
 	db *gorm.DB
 }
 
-var _ domainrepo.FileRepository = (*FileRepository)(nil)
+var _ domainrepo.JobRepository = (*JobRepository)(nil)
 
 func NewJobRepository(db *gorm.DB) *JobRepository {
 	return &JobRepository{db: db}
