@@ -11,8 +11,8 @@
 .vscode/
 
 # Swagger generated
-docs/Swagger.json
-docs/Swagger.yaml
+docs/swagger.json
+docs/swagger.yaml
 docs/docs.go
 
 # Test coverage
@@ -21,3 +21,5 @@ coverage.html
 
 # OS
 .DS_Store
+CLAUDE.md
+docs/*.pdf
