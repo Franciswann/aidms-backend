@@ -105,16 +105,16 @@ POST   /api/v1/auth/login
 
 GET    /api/v1/containers
 POST   /api/v1/containers
-GET    /api/v1/containers/:id
-POST   /api/v1/containers/:id/start
-POST   /api/v1/containers/:id/stop
-DELETE /api/v1/containers/:id
+GET    /api/v1/containers/{id}
+POST   /api/v1/containers/{id}/start
+POST   /api/v1/containers/{id}/stop
+DELETE /api/v1/containers/{id}
 
 GET    /api/v1/files
 POST   /api/v1/files
-DELETE /api/v1/files/:id
+DELETE /api/v1/files/{id}
 
-GET    /api/v1/jobs/:id
+GET    /api/v1/jobs/{id}
 ```
 
 ---
@@ -123,21 +123,21 @@ GET    /api/v1/jobs/:id
 
 ### 已完成
 - [x] Domain 層：entity（User / Container / File / Job）
-- [x] Domain 層：Repository 介面
+- [x] Domain 層：Repository 介面（含 `ErrNotFound` sentinel error，避免 GORM 錯誤洩漏到 Use Case 層）
 - [x] Interface Adapters 層：GORM Model（`TableName` / `ToDomain` / `XxxFromDomain`）
 - [x] Interface Adapters 層：Repository 實作（皆有 compile-time interface check）
+- [x] `configs/config.go`：DB 連線設定、環境變數讀取、`JWT_SECRET` fail-fast
+- [x] `cmd/api/main.go`：DI 組裝、GORM AutoMigrate、Gin server 啟動
+- [x] User 垂直切片：`UserService`（bcrypt 密碼雜湊、JWT 簽發）+ `UserHandler` + `/api/v1/auth/register`、`/api/v1/auth/login`（已驗證端到端）
 
 ### 待完成
-- [ ] `configs/config.go`：DB 連線設定、環境變數讀取
-- [ ] `cmd/api/main.go`：DI 組裝、GORM AutoMigrate、Gin server 啟動
-- [ ] Use Case 層：UserService、ContainerService、FileService、JobService
-- [ ] Docker SDK Adapter（`internal/docker/`）
-- [ ] Gin HTTP Handlers（`internal/handler/`）
+- [ ] Container 垂直切片：Use Case + Docker SDK Adapter（`internal/docker/`）+ Handler
+- [ ] File 垂直切片：檔案上傳功能 + Use Case + Handler
+- [ ] Job 垂直切片
+- [ ] JWT Auth Middleware（保護 Container/File/Job 路由）
 - [ ] 日誌管理系統（`internal/logger/`，Task 2，整合為 Task 1 的 logging middleware）
-- [ ] JWT Auth Middleware
-- [ ] 檔案上傳功能
 - [ ] 單元測試與集成測試
 - [ ] Swagger API 文檔
-- [ ] 非同步任務處理（Async Job，進階）
-- [ ] 並發控制（Concurrency Control，進階）
 - [ ] Graceful Shutdown（加分項）
+- [ ] 非同步任務處理（Async Job，進階，時間允許才做）
+- [ ] 並發控制（Concurrency Control，進階，時間允許才做）
