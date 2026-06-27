@@ -2,6 +2,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/Franciswann/aidms-backend/internal/domain/entity"
 	domainrepo "github.com/Franciswann/aidms-backend/internal/domain/repository"
 	"gorm.io/gorm"
@@ -25,6 +27,9 @@ func (r *FileRepository) Save(file *entity.File) error {
 func (r *FileRepository) FindByID(id string) (*entity.File, error) {
 	var model FileModel
 	if err := r.db.Where("id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainrepo.ErrNotFound
+		}
 		return nil, err
 	}
 	return model.ToDomain(), nil

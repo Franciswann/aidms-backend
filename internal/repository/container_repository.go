@@ -2,6 +2,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/Franciswann/aidms-backend/internal/domain/entity"
 	domainrepo "github.com/Franciswann/aidms-backend/internal/domain/repository"
 	"gorm.io/gorm"
@@ -34,6 +36,9 @@ func (r *ContainerRepository) Delete(id string) error {
 func (r *ContainerRepository) FindByID(id string) (*entity.Container, error) {
 	var model ContainerModel
 	if err := r.db.Where("id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainrepo.ErrNotFound
+		}
 		return nil, err
 	}
 	return model.ToDomain(), nil
@@ -42,6 +47,9 @@ func (r *ContainerRepository) FindByID(id string) (*entity.Container, error) {
 func (r *ContainerRepository) FindByDockerID(dockerID string) (*entity.Container, error) {
 	var model ContainerModel
 	if err := r.db.Where("docker_id = ?", dockerID).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainrepo.ErrNotFound
+		}
 		return nil, err
 	}
 	return model.ToDomain(), nil

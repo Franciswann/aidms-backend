@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"errors"
+
 	"github.com/Franciswann/aidms-backend/internal/domain/entity"
 	domainrepo "github.com/Franciswann/aidms-backend/internal/domain/repository"
 	"gorm.io/gorm"
@@ -23,6 +25,9 @@ func (r *UserRepository) Save(user *entity.User) error {
 func (r *UserRepository) FindByID(id string) (*entity.User, error) {
 	var model UserModel
 	if err := r.db.Where("id = ?", id).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainrepo.ErrNotFound
+		}
 		return nil, err
 	}
 	return model.ToDomain(), nil
@@ -31,6 +36,9 @@ func (r *UserRepository) FindByID(id string) (*entity.User, error) {
 func (r *UserRepository) FindByEmail(email string) (*entity.User, error) {
 	var model UserModel
 	if err := r.db.Where("email = ?", email).First(&model).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domainrepo.ErrNotFound
+		}
 		return nil, err
 	}
 	return model.ToDomain(), nil
