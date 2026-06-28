@@ -74,6 +74,8 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 | JWT 驗證強制限定 HMAC 演算法 | 防範 "alg confusion" 攻擊——不能讓 token 自己宣告的簽名演算法決定驗證方式，否則攻擊者可能用 `alg: none` 或非對稱演算法繞過驗證 |
 | 檔案上傳：實際存檔路徑用 `{FileStoragePath}/{userID}/{file 自己的 UUID}`，原始檔名只當中繼資料存進 DB | 從根本避免 path traversal（路徑遍歷）攻擊——不管使用者把檔名取成什麼字串，都不會影響實際寫入磁碟的路徑，不需要靠黑名單擋特殊符號；per-user 資料夾則對應 PDF 要求、也方便日後依使用者做整批清理 |
 | `FileService.Upload` 簽名只收 `io.Reader` + 純量參數，不收 `*multipart.FileHeader` | Use Case 層不該知道「這次上傳是透過 HTTP multipart」這件事，由 Handler（Interface Adapters 層）負責把 HTTP 特有的型別轉換成跟來源無關的普通參數 |
+| `ContainerService.CreateAsync` 重用既有的同步 `Create`，包一層 goroutine | 長耗時的容器建立不用讓 HTTP request 卡住等待；背景工作直接呼叫已經寫好、已經測過的 `Create`，不重複實作一份建立邏輯 |
+| goroutine 拿 `entity.Job` 的「副本」而非跟呼叫者共用同一個指標 | `go test -race` 抓到的真實 data race：原本同一個 `*entity.Job` 指標同時被「回傳給呼叫者」跟「背景 goroutine 持續寫入」兩邊共用，沒有同步機制；修法是讓 goroutine 操作自己的副本，呼叫者拿到的指標之後不會再被修改 |
 
 ---
 
@@ -81,7 +83,7 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 
 ### 前置需求
 - Go 1.25.6+
-- Docker / Docker Compose（用於啟動本機 PostgreSQL）
+- Docker / Docker Compose（用於啟動本機 PostgreSQL，以及容器功能本身需要連線 Docker daemon）
 
 ### 步驟
 
@@ -92,36 +94,45 @@ docker-compose up -d
 # 2. 安裝相依套件
 go mod download
 
-# 3. 建置確認
-go build ./...
+# 3. 建一個 .env（範例值，JWT_SECRET 必填，其餘有預設值）
+cat > .env <<EOF
+JWT_SECRET=please-change-me
+EOF
 
-# 4. 執行測試
+# 4. 啟動服務
+go run ./cmd/api
+
+# 5. 執行測試
 go test ./...
 ```
 
-> `cmd/api/main.go` 尚未實作，目前無法以 `go run` 啟動完整 API 服務，詳見下方開發進度。
+啟動後可以打開 `http://localhost:8080/swagger/index.html` 看互動式 API 文檔，或 `http://localhost:8080/health` 確認服務存活。
 
 ---
 
-## API 設計（規劃中）
+## API 設計
+
+完整、可互動的版本請看 `/swagger/index.html`；這裡列路徑速覽：
 
 ```
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login
 
 GET    /api/v1/containers
-POST   /api/v1/containers
+POST   /api/v1/containers              # 非同步：立刻回 202 + Job，背景建立容器
 GET    /api/v1/containers/{id}
 POST   /api/v1/containers/{id}/start
 POST   /api/v1/containers/{id}/stop
 DELETE /api/v1/containers/{id}
 
 GET    /api/v1/files
-POST   /api/v1/files
+POST   /api/v1/files                   # multipart/form-data，欄位名稱 "file"
 DELETE /api/v1/files/{id}
 
-GET    /api/v1/jobs/{id}
+GET    /api/v1/jobs/{id}               # 查詢非同步任務狀態：pending/running/success/failed
 ```
+
+除了 `/auth/*`，其餘都需要在 `Authorization: Bearer {token}` header 帶上登入取得的 JWT。
 
 ---
 
@@ -138,12 +149,11 @@ GET    /api/v1/jobs/{id}
 - [x] JWT Auth Middleware：驗證 token、防 alg-confusion、注入 `userID` 到 context
 - [x] Container 垂直切片：`domainrepo.ContainerRuntime` 介面 + `internal/docker`（Docker SDK 實作）+ `ContainerService`（含建立失敗的補償回滾、擁有權檢查）+ `ContainerHandler` + `/api/v1/containers/*`（已驗證端到端對真實 Docker daemon，含單元測試）
 - [x] File 垂直切片：`FileService`（per-user 資料夾、UUID 檔名避免 path traversal、上傳失敗補償回滾）+ `FileHandler`（拆解 multipart upload）+ `/api/v1/files/*`（已驗證端到端，含單元測試）
-- [x] Swagger API 文檔（swaggo）：Auth / Container / File 全部 endpoint 都有 annotation，UI 在 `/swagger/index.html`
+- [x] Swagger API 文檔（swaggo）：Auth / Container / File / Job 全部 endpoint 都有 annotation，UI 在 `/swagger/index.html`
+- [x] **[進階] 非同步任務處理**：`ContainerService.CreateAsync` 立刻回傳 Job（`202`），背景 goroutine 跑實際建立流程，狀態 `pending → running → success/failed`；`GET /jobs/{id}` 查詢進度；`sync.WaitGroup` 追蹤 in-flight 工作，為 Graceful Shutdown 預留掛勾（已驗證端到端，含單元測試，`-race` 乾淨）
 
 ### 待完成
-- [ ] Job 垂直切片
 - [ ] 日誌管理系統（`internal/logger/`，Task 2，整合為 Task 1 的 logging middleware）
 - [ ] 補齊單元測試與集成測試（Handler 層、Repository 層目前還沒有測試）
 - [ ] Graceful Shutdown（加分項）
-- [ ] 非同步任務處理（Async Job，進階，時間允許才做）
 - [ ] 並發控制（Concurrency Control，進階，時間允許才做）
