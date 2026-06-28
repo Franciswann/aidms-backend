@@ -72,6 +72,8 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 | `ContainerService.Create` 的補償回滾（compensating action） | Docker 建立容器跟存 DB 是兩個獨立系統，無法用單一 transaction 保證原子性；DB 寫入失敗時主動呼叫 `Remove` 清掉孤兒容器，盡量避免留下沒有紀錄、但持續佔資源的容器 |
 | Start/Stop/Delete 前先做擁有權檢查（`container.UserID == userID`） | `userID` 從 JWT 解出來，但 container 是用 ID 查的；不檢查擁有權的話，使用者 A 只要知道某個 container 的 ID 就能操作使用者 B 的容器 |
 | JWT 驗證強制限定 HMAC 演算法 | 防範 "alg confusion" 攻擊——不能讓 token 自己宣告的簽名演算法決定驗證方式，否則攻擊者可能用 `alg: none` 或非對稱演算法繞過驗證 |
+| 檔案上傳：實際存檔路徑用 `{FileStoragePath}/{userID}/{file 自己的 UUID}`，原始檔名只當中繼資料存進 DB | 從根本避免 path traversal（路徑遍歷）攻擊——不管使用者把檔名取成什麼字串，都不會影響實際寫入磁碟的路徑，不需要靠黑名單擋特殊符號；per-user 資料夾則對應 PDF 要求、也方便日後依使用者做整批清理 |
+| `FileService.Upload` 簽名只收 `io.Reader` + 純量參數，不收 `*multipart.FileHeader` | Use Case 層不該知道「這次上傳是透過 HTTP multipart」這件事，由 Handler（Interface Adapters 層）負責把 HTTP 特有的型別轉換成跟來源無關的普通參數 |
 
 ---
 
@@ -135,13 +137,13 @@ GET    /api/v1/jobs/{id}
 - [x] User 垂直切片：`UserService`（bcrypt 密碼雜湊、JWT 簽發）+ `UserHandler` + `/api/v1/auth/register`、`/api/v1/auth/login`（已驗證端到端，含單元測試）
 - [x] JWT Auth Middleware：驗證 token、防 alg-confusion、注入 `userID` 到 context
 - [x] Container 垂直切片：`domainrepo.ContainerRuntime` 介面 + `internal/docker`（Docker SDK 實作）+ `ContainerService`（含建立失敗的補償回滾、擁有權檢查）+ `ContainerHandler` + `/api/v1/containers/*`（已驗證端到端對真實 Docker daemon，含單元測試）
+- [x] File 垂直切片：`FileService`（per-user 資料夾、UUID 檔名避免 path traversal、上傳失敗補償回滾）+ `FileHandler`（拆解 multipart upload）+ `/api/v1/files/*`（已驗證端到端，含單元測試）
+- [x] Swagger API 文檔（swaggo）：Auth / Container / File 全部 endpoint 都有 annotation，UI 在 `/swagger/index.html`
 
 ### 待完成
-- [ ] File 垂直切片：檔案上傳功能 + Use Case + Handler
 - [ ] Job 垂直切片
 - [ ] 日誌管理系統（`internal/logger/`，Task 2，整合為 Task 1 的 logging middleware）
 - [ ] 補齊單元測試與集成測試（Handler 層、Repository 層目前還沒有測試）
-- [ ] Swagger API 文檔
 - [ ] Graceful Shutdown（加分項）
 - [ ] 非同步任務處理（Async Job，進階，時間允許才做）
 - [ ] 並發控制（Concurrency Control，進階，時間允許才做）
