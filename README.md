@@ -68,6 +68,10 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 | `ContainerStatus`／`JobStatus` 自定義型別 | 限制合法值集合，編譯期就能防止寫入無效狀態，比起裸字串更安全 |
 | 容器同時保留系統內部 UUID 與 Docker 容器的 `DockerID` | 對外 API 只暴露系統 UUID，對內才用 `DockerID` 呼叫 Docker SDK；未來若改用 Kubernetes，只需替換內部對應邏輯，API 合約不受影響 |
 | Compile-time interface check（`var _ Interface = (*Struct)(nil)`） | 讓 Repository 實作是否完整符合介面在編譯期就能發現，不必等到執行期才出錯 |
+| `domainrepo.ContainerRuntime` 介面（Domain 層）+ `internal/docker`（實作） | 跟 Repository 同一套 DIP 模式：Use Case 只認識「建立/啟動/停止/移除容器」這個介面，不直接依賴 Docker SDK，方便測試（mock）跟未來換成 K8s |
+| `ContainerService.Create` 的補償回滾（compensating action） | Docker 建立容器跟存 DB 是兩個獨立系統，無法用單一 transaction 保證原子性；DB 寫入失敗時主動呼叫 `Remove` 清掉孤兒容器，盡量避免留下沒有紀錄、但持續佔資源的容器 |
+| Start/Stop/Delete 前先做擁有權檢查（`container.UserID == userID`） | `userID` 從 JWT 解出來，但 container 是用 ID 查的；不檢查擁有權的話，使用者 A 只要知道某個 container 的 ID 就能操作使用者 B 的容器 |
+| JWT 驗證強制限定 HMAC 演算法 | 防範 "alg confusion" 攻擊——不能讓 token 自己宣告的簽名演算法決定驗證方式，否則攻擊者可能用 `alg: none` 或非對稱演算法繞過驗證 |
 
 ---
 
@@ -128,15 +132,15 @@ GET    /api/v1/jobs/{id}
 - [x] Interface Adapters 層：Repository 實作（皆有 compile-time interface check）
 - [x] `configs/config.go`：DB 連線設定、環境變數讀取、`JWT_SECRET` fail-fast
 - [x] `cmd/api/main.go`：DI 組裝、GORM AutoMigrate、Gin server 啟動
-- [x] User 垂直切片：`UserService`（bcrypt 密碼雜湊、JWT 簽發）+ `UserHandler` + `/api/v1/auth/register`、`/api/v1/auth/login`（已驗證端到端）
+- [x] User 垂直切片：`UserService`（bcrypt 密碼雜湊、JWT 簽發）+ `UserHandler` + `/api/v1/auth/register`、`/api/v1/auth/login`（已驗證端到端，含單元測試）
+- [x] JWT Auth Middleware：驗證 token、防 alg-confusion、注入 `userID` 到 context
+- [x] Container 垂直切片：`domainrepo.ContainerRuntime` 介面 + `internal/docker`（Docker SDK 實作）+ `ContainerService`（含建立失敗的補償回滾、擁有權檢查）+ `ContainerHandler` + `/api/v1/containers/*`（已驗證端到端對真實 Docker daemon，含單元測試）
 
 ### 待完成
-- [ ] Container 垂直切片：Use Case + Docker SDK Adapter（`internal/docker/`）+ Handler
 - [ ] File 垂直切片：檔案上傳功能 + Use Case + Handler
 - [ ] Job 垂直切片
-- [ ] JWT Auth Middleware（保護 Container/File/Job 路由）
 - [ ] 日誌管理系統（`internal/logger/`，Task 2，整合為 Task 1 的 logging middleware）
-- [ ] 單元測試與集成測試
+- [ ] 補齊單元測試與集成測試（Handler 層、Repository 層目前還沒有測試）
 - [ ] Swagger API 文檔
 - [ ] Graceful Shutdown（加分項）
 - [ ] 非同步任務處理（Async Job，進階，時間允許才做）
