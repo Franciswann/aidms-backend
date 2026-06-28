@@ -17,6 +17,8 @@ type Config struct {
 	ServerPort      string
 	JWTSecret       string
 	FileStoragePath string
+	LogFilePath     string
+	LogMinLevel     string
 }
 
 func Load() *Config {
@@ -34,6 +36,8 @@ func Load() *Config {
 		ServerPort:      getEnv("SERVER_PORT", "8080"),
 		JWTSecret:       mustGetEnv("JWT_SECRET"),
 		FileStoragePath: getEnv("FILE_STORAGE_PATH", "./uploads"),
+		LogFilePath:     getEnv("LOG_FILE_PATH", "./logs/app.log"),
+		LogMinLevel:     getEnv("LOG_MIN_LEVEL", "info"),
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	_ "github.com/Franciswann/aidms-backend/docs"
 	"github.com/Franciswann/aidms-backend/internal/docker"
 	"github.com/Franciswann/aidms-backend/internal/handler"
+	"github.com/Franciswann/aidms-backend/internal/logger"
 	"github.com/Franciswann/aidms-backend/internal/middleware"
 	"github.com/Franciswann/aidms-backend/internal/repository"
 	"github.com/Franciswann/aidms-backend/internal/usecase/container"
@@ -66,7 +67,14 @@ func main() {
 	fileService := file.NewFileService(fileRepo, cfg.FileStoragePath)
 	fileHandler := handler.NewFileHandler(fileService)
 
+	logStore, err := logger.NewFileLogStore(cfg.LogFilePath)
+	if err != nil {
+		log.Fatalf("failed to create log store: %v", err)
+	}
+	logManager := logger.NewLogManager(logStore, logStore, logger.LogLevel(cfg.LogMinLevel))
+
 	r := gin.Default()
+	r.Use(middleware.LoggingMiddleware(logManager))
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})

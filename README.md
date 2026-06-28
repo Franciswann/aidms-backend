@@ -151,9 +151,9 @@ GET    /api/v1/jobs/{id}               # 查詢非同步任務狀態：pending/r
 - [x] File 垂直切片：`FileService`（per-user 資料夾、UUID 檔名避免 path traversal、上傳失敗補償回滾）+ `FileHandler`（拆解 multipart upload）+ `/api/v1/files/*`（已驗證端到端，含單元測試）
 - [x] Swagger API 文檔（swaggo）：Auth / Container / File / Job 全部 endpoint 都有 annotation，UI 在 `/swagger/index.html`
 - [x] **[進階] 非同步任務處理**：`ContainerService.CreateAsync` 立刻回傳 Job（`202`），背景 goroutine 跑實際建立流程，狀態 `pending → running → success/failed`；`GET /jobs/{id}` 查詢進度；`sync.WaitGroup` 追蹤 in-flight 工作，為 Graceful Shutdown 預留掛勾（已驗證端到端，含單元測試，`-race` 乾淨）
+- [x] **Task 2：可擴展日誌管理系統**（`internal/logger/`）：`LogEntry`/`LogWriter`/`LogReader`/`LogHandler` 四個介面 + `LogManager`；可插拔儲存（`FileLogStore` JSON Lines / `InMemoryLogStore`）、分級過濾、channel + 單一背景 goroutine 的非同步寫入（保證順序）、`RegisterLogHandler` 擴展點、結構化 JSON 輸出（[進階] 已實作，Zero-Allocation [進階] 設計方向寫在文檔未實作）。整合為 Task 1 的 `LoggingMiddleware`，已驗證端到端、含單元測試與可執行範例。設計文檔見 [`internal/logger/DESIGN.md`](internal/logger/DESIGN.md)
 
 ### 待完成
-- [ ] 日誌管理系統（`internal/logger/`，Task 2，整合為 Task 1 的 logging middleware）
 - [ ] 補齊單元測試與集成測試（Handler 層、Repository 層目前還沒有測試）
 - [ ] Graceful Shutdown（加分項）
 - [ ] 並發控制（Concurrency Control，進階，時間允許才做）

@@ -13,6 +13,9 @@
 # Uploaded files (runtime user data)
 /uploads/
 
+# Application logs (runtime data)
+/logs/
+
 # Test coverage
 *.out
 coverage.html
