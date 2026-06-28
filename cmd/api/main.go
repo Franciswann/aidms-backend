@@ -51,8 +51,9 @@ func main() {
 	})
 
 	v1 := r.Group("/api/v1")
-	v1.POST("/auth/register", userHandler.Register)
-	v1.POST("/auth/login", userHandler.Login)
+	auth := v1.Group("/auth")
+	auth.POST("/register", userHandler.Register)
+	auth.POST("/login", userHandler.Login)
 
 	containers := v1.Group("/containers")
 	containers.Use(middleware.AuthMiddleware(cfg.JWTSecret))
