@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Franciswann/aidms-backend/configs"
+	_ "github.com/Franciswann/aidms-backend/docs"
 	"github.com/Franciswann/aidms-backend/internal/docker"
 	"github.com/Franciswann/aidms-backend/internal/handler"
 	"github.com/Franciswann/aidms-backend/internal/middleware"
@@ -13,10 +14,20 @@ import (
 	"github.com/Franciswann/aidms-backend/internal/usecase/container"
 	"github.com/Franciswann/aidms-backend/internal/usecase/user"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
+// @title           AIDMS Backend API
+// @version         1.0
+// @description     Backend API for the container management system
+// @BasePath        /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
+// @description     JWT token, format: "Bearer {token}"
 func main() {
 	cfg := configs.Load()
 
@@ -49,6 +60,7 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1 := r.Group("/api/v1")
 	auth := v1.Group("/auth")

@@ -10,11 +10,6 @@
 .idea/
 .vscode/
 
-# Swagger generated
-docs/swagger.json
-docs/swagger.yaml
-docs/docs.go
-
 # Test coverage
 *.out
 coverage.html
