@@ -41,6 +41,23 @@ definitions:
       size:
         type: integer
     type: object
+  handler.jobResponse:
+    properties:
+      action:
+        type: string
+      container_id:
+        type: string
+      created_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   handler.loginRequest:
     properties:
       email:
@@ -168,8 +185,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Pull the given image and create a new Docker container owned by
-        the authenticated user
+      description: Starts pulling the given image and creating a Docker container
+        in the background, owned by the authenticated user. Returns a Job immediately
+        - poll GET /jobs/{id} for completion.
       parameters:
       - description: Container creation payload
         in: body
@@ -180,10 +198,10 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "202":
+          description: Accepted
           schema:
-            $ref: '#/definitions/handler.containerResponse'
+            $ref: '#/definitions/handler.jobResponse'
         "400":
           description: Bad Request
           schema:
@@ -198,7 +216,7 @@ paths:
             $ref: '#/definitions/handler.errorResponse'
       security:
       - BearerAuth: []
-      summary: Create a new container
+      summary: Create a new container (asynchronous)
       tags:
       - containers
   /containers/{id}:
@@ -439,6 +457,40 @@ paths:
       summary: Delete a file
       tags:
       - files
+  /jobs/{id}:
+    get:
+      description: Poll the status of an asynchronous job (e.g. container creation)
+        owned by the authenticated user
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.jobResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a job's status
+      tags:
+      - jobs
 securityDefinitions:
   BearerAuth:
     description: 'JWT token, format: "Bearer {token}"'

@@ -13,6 +13,7 @@ import (
 	"github.com/Franciswann/aidms-backend/internal/repository"
 	"github.com/Franciswann/aidms-backend/internal/usecase/container"
 	"github.com/Franciswann/aidms-backend/internal/usecase/file"
+	"github.com/Franciswann/aidms-backend/internal/usecase/job"
 	"github.com/Franciswann/aidms-backend/internal/usecase/user"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -53,8 +54,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create docker runtime: %v", err)
 	}
+	jobRepo := repository.NewJobRepository(db)
+	jobService := job.NewJobService(jobRepo)
+	jobHandler := handler.NewJobHandler(jobService)
+
 	containerRepo := repository.NewContainerRepository(db)
-	containerService := container.NewContainerService(dockerRuntime, containerRepo)
+	containerService := container.NewContainerService(dockerRuntime, containerRepo, jobRepo)
 	containerHandler := handler.NewContainerHandler(containerService)
 
 	fileRepo := repository.NewFileRepository(db)
@@ -86,6 +91,10 @@ func main() {
 	files.POST("", fileHandler.Upload)
 	files.GET("", fileHandler.List)
 	files.DELETE("/:id", fileHandler.Delete)
+
+	jobs := v1.Group("/jobs")
+	jobs.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+	jobs.GET("/:id", jobHandler.Get)
 
 	if err := r.Run(fmt.Sprintf(":%s", cfg.ServerPort)); err != nil {
 		log.Fatalf("failed to start server: %v", err)

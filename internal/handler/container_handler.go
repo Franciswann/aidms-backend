@@ -59,14 +59,14 @@ func handleServiceError(c *gin.Context, err error) {
 }
 
 // Create godoc
-// @Summary      Create a new container
-// @Description  Pull the given image and create a new Docker container owned by the authenticated user
+// @Summary      Create a new container (asynchronous)
+// @Description  Starts pulling the given image and creating a Docker container in the background, owned by the authenticated user. Returns a Job immediately - poll GET /jobs/{id} for completion.
 // @Tags         containers
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
 // @Param        request body createContainerRequest true "Container creation payload"
-// @Success      201 {object} containerResponse
+// @Success      202 {object} jobResponse
 // @Failure      400 {object} errorResponse
 // @Failure      401 {object} errorResponse
 // @Failure      500 {object} errorResponse
@@ -80,13 +80,13 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 		return
 	}
 
-	ctr, err := h.containerService.Create(userID, req.Image, req.Name)
+	j, err := h.containerService.CreateAsync(userID, req.Image, req.Name)
 	if err != nil {
 		handleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, toContainerResponse(ctr))
+	c.JSON(http.StatusAccepted, toJobResponse(j))
 }
 
 // Start godoc

@@ -102,13 +102,89 @@ func (m *mockContainerRepository) FindByUserID(userID string) ([]*entity.Contain
 	return out, nil
 }
 
+type mockJobRepository struct {
+	byID map[string]*entity.Job
+}
+
+var _ domainrepo.JobRepository = (*mockJobRepository)(nil)
+
+func newMockJobRepository() *mockJobRepository {
+	return &mockJobRepository{byID: make(map[string]*entity.Job)}
+}
+
+func (m *mockJobRepository) Save(j *entity.Job) error {
+	m.byID[j.ID] = j
+	return nil
+}
+
+func (m *mockJobRepository) Update(j *entity.Job) error {
+	m.byID[j.ID] = j
+	return nil
+}
+
+func (m *mockJobRepository) FindByID(id string) (*entity.Job, error) {
+	j, ok := m.byID[id]
+	if !ok {
+		return nil, domainrepo.ErrNotFound
+	}
+	return j, nil
+}
+
+func (m *mockJobRepository) FindByUserID(userID string) ([]*entity.Job, error) {
+	var out []*entity.Job
+	for _, j := range m.byID {
+		if j.UserID == userID {
+			out = append(out, j)
+		}
+	}
+	return out, nil
+}
+
 var errSimulated = errors.New("simulated failure")
+
+func TestContainerService_CreateAsync(t *testing.T) {
+	t.Run("success - job ends up succeeded with the new container's ID", func(t *testing.T) {
+		rt := &mockContainerRuntime{createID: "docker-789"}
+		repo := newMockContainerRepository()
+		jobRepo := newMockJobRepository()
+		svc := NewContainerService(rt, repo, jobRepo)
+
+		j, err := svc.CreateAsync("user-1", "alpine:latest", "my-container")
+		require.NoError(t, err)
+		require.NotNil(t, j)
+		assert.Equal(t, entity.JobStatusPending, j.Status)
+
+		svc.Wait()
+
+		final, err := jobRepo.FindByID(j.ID)
+		require.NoError(t, err)
+		assert.Equal(t, entity.JobStatusSuccess, final.Status)
+		assert.NotEmpty(t, final.ContainerID)
+	})
+
+	t.Run("runtime create fails - job ends up failed with the error recorded", func(t *testing.T) {
+		rt := &mockContainerRuntime{createErr: errSimulated}
+		repo := newMockContainerRepository()
+		jobRepo := newMockJobRepository()
+		svc := NewContainerService(rt, repo, jobRepo)
+
+		j, err := svc.CreateAsync("user-1", "alpine:latest", "my-container")
+		require.NoError(t, err)
+
+		svc.Wait()
+
+		final, err := jobRepo.FindByID(j.ID)
+		require.NoError(t, err)
+		assert.Equal(t, entity.JobStatusFailed, final.Status)
+		assert.Equal(t, errSimulated.Error(), final.ErrorMessage)
+	})
+}
 
 func TestContainerService_Create(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		rt := &mockContainerRuntime{createID: "docker-123"}
 		repo := newMockContainerRepository()
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		c, err := svc.Create("user-1", "alpine:latest", "my-container")
 
@@ -122,7 +198,7 @@ func TestContainerService_Create(t *testing.T) {
 	t.Run("runtime create fails - never touches the repository", func(t *testing.T) {
 		rt := &mockContainerRuntime{createErr: errSimulated}
 		repo := newMockContainerRepository()
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		c, err := svc.Create("user-1", "alpine:latest", "my-container")
 
@@ -135,7 +211,7 @@ func TestContainerService_Create(t *testing.T) {
 		rt := &mockContainerRuntime{createID: "docker-456"}
 		repo := newMockContainerRepository()
 		repo.saveErr = errSimulated
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		c, err := svc.Create("user-1", "alpine:latest", "my-container")
 
@@ -153,7 +229,7 @@ func TestContainerService_Start(t *testing.T) {
 		rt := &mockContainerRuntime{}
 		repo := newMockContainerRepository()
 		repo.byID["c-1"] = &entity.Container{ID: "c-1", UserID: "user-1", DockerID: "docker-1", Status: entity.ContainerStatusCreated}
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		err := svc.Start("user-1", "c-1")
 
@@ -164,7 +240,7 @@ func TestContainerService_Start(t *testing.T) {
 	t.Run("container not found", func(t *testing.T) {
 		rt := &mockContainerRuntime{}
 		repo := newMockContainerRepository()
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		err := svc.Start("user-1", "does-not-exist")
 
@@ -175,7 +251,7 @@ func TestContainerService_Start(t *testing.T) {
 		rt := &mockContainerRuntime{}
 		repo := newMockContainerRepository()
 		repo.byID["c-1"] = &entity.Container{ID: "c-1", UserID: "owner", DockerID: "docker-1"}
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		err := svc.Start("someone-else", "c-1")
 
@@ -188,7 +264,7 @@ func TestContainerService_Stop(t *testing.T) {
 		rt := &mockContainerRuntime{}
 		repo := newMockContainerRepository()
 		repo.byID["c-1"] = &entity.Container{ID: "c-1", UserID: "user-1", DockerID: "docker-1", Status: entity.ContainerStatusRunning}
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		err := svc.Stop("user-1", "c-1")
 
@@ -202,7 +278,7 @@ func TestContainerService_Delete(t *testing.T) {
 		rt := &mockContainerRuntime{}
 		repo := newMockContainerRepository()
 		repo.byID["c-1"] = &entity.Container{ID: "c-1", UserID: "user-1", DockerID: "docker-1"}
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		err := svc.Delete("user-1", "c-1")
 
@@ -217,7 +293,7 @@ func TestContainerService_Delete(t *testing.T) {
 		rt := &mockContainerRuntime{removeErr: errSimulated}
 		repo := newMockContainerRepository()
 		repo.byID["c-1"] = &entity.Container{ID: "c-1", UserID: "user-1", DockerID: "docker-1"}
-		svc := NewContainerService(rt, repo)
+		svc := NewContainerService(rt, repo, newMockJobRepository())
 
 		err := svc.Delete("user-1", "c-1")
 
