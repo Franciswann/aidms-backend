@@ -10,6 +10,9 @@
 .idea/
 .vscode/
 
+# Uploaded files (runtime user data)
+/uploads/
+
 # Test coverage
 *.out
 coverage.html

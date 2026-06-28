@@ -12,6 +12,7 @@ import (
 	"github.com/Franciswann/aidms-backend/internal/middleware"
 	"github.com/Franciswann/aidms-backend/internal/repository"
 	"github.com/Franciswann/aidms-backend/internal/usecase/container"
+	"github.com/Franciswann/aidms-backend/internal/usecase/file"
 	"github.com/Franciswann/aidms-backend/internal/usecase/user"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -56,6 +57,10 @@ func main() {
 	containerService := container.NewContainerService(dockerRuntime, containerRepo)
 	containerHandler := handler.NewContainerHandler(containerService)
 
+	fileRepo := repository.NewFileRepository(db)
+	fileService := file.NewFileService(fileRepo, cfg.FileStoragePath)
+	fileHandler := handler.NewFileHandler(fileService)
+
 	r := gin.Default()
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -75,6 +80,12 @@ func main() {
 	containers.POST("/:id/start", containerHandler.Start)
 	containers.POST("/:id/stop", containerHandler.Stop)
 	containers.DELETE("/:id", containerHandler.Delete)
+
+	files := v1.Group("/files")
+	files.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+	files.POST("", fileHandler.Upload)
+	files.GET("", fileHandler.List)
+	files.DELETE("/:id", fileHandler.Delete)
 
 	if err := r.Run(fmt.Sprintf(":%s", cfg.ServerPort)); err != nil {
 		log.Fatalf("failed to start server: %v", err)
