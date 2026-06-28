@@ -1,5 +1,28 @@
 basePath: /api/v1
 definitions:
+  handler.containerResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      image:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  handler.createContainerRequest:
+    properties:
+      image:
+        type: string
+      name:
+        type: string
+    required:
+    - image
+    - name
+    type: object
   handler.errorResponse:
     properties:
       error:
@@ -104,6 +127,212 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /containers:
+    get:
+      description: List all containers owned by the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.containerResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: List containers
+      tags:
+      - containers
+    post:
+      consumes:
+      - application/json
+      description: Pull the given image and create a new Docker container owned by
+        the authenticated user
+      parameters:
+      - description: Container creation payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createContainerRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.containerResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new container
+      tags:
+      - containers
+  /containers/{id}:
+    delete:
+      description: Remove a container (from Docker and the database) owned by the
+        authenticated user
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a container
+      tags:
+      - containers
+    get:
+      description: Get a single container owned by the authenticated user
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.containerResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a container
+      tags:
+      - containers
+  /containers/{id}/start:
+    post:
+      description: Start a previously created container owned by the authenticated
+        user
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start a container
+      tags:
+      - containers
+  /containers/{id}/stop:
+    post:
+      description: Stop a running container owned by the authenticated user
+      parameters:
+      - description: Container ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Stop a container
+      tags:
+      - containers
 securityDefinitions:
   BearerAuth:
     description: 'JWT token, format: "Bearer {token}"'

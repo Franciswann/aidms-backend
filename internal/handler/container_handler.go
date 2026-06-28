@@ -58,6 +58,19 @@ func handleServiceError(c *gin.Context, err error) {
 	}
 }
 
+// Create godoc
+// @Summary      Create a new container
+// @Description  Pull the given image and create a new Docker container owned by the authenticated user
+// @Tags         containers
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request body createContainerRequest true "Container creation payload"
+// @Success      201 {object} containerResponse
+// @Failure      400 {object} errorResponse
+// @Failure      401 {object} errorResponse
+// @Failure      500 {object} errorResponse
+// @Router       /containers [post]
 func (h *ContainerHandler) Create(c *gin.Context) {
 	userID := c.GetString("userID")
 
@@ -76,6 +89,19 @@ func (h *ContainerHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, toContainerResponse(ctr))
 }
 
+// Start godoc
+// @Summary      Start a container
+// @Description  Start a previously created container owned by the authenticated user
+// @Tags         containers
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Container ID"
+// @Success      200 {object} map[string]string
+// @Failure      401 {object} errorResponse
+// @Failure      403 {object} errorResponse
+// @Failure      404 {object} errorResponse
+// @Failure      500 {object} errorResponse
+// @Router       /containers/{id}/start [post]
 func (h *ContainerHandler) Start(c *gin.Context) {
 	userID := c.GetString("userID")
 	containerID := c.Param("id")
@@ -88,6 +114,16 @@ func (h *ContainerHandler) Start(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "started"})
 }
 
+// List godoc
+// @Summary      List containers
+// @Description  List all containers owned by the authenticated user
+// @Tags         containers
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {array} containerResponse
+// @Failure      401 {object} errorResponse
+// @Failure      500 {object} errorResponse
+// @Router       /containers [get]
 func (h *ContainerHandler) List(c *gin.Context) {
 	userID := c.GetString("userID")
 
@@ -104,6 +140,18 @@ func (h *ContainerHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// Get godoc
+// @Summary      Get a container
+// @Description  Get a single container owned by the authenticated user
+// @Tags         containers
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Container ID"
+// @Success      200 {object} containerResponse
+// @Failure      401 {object} errorResponse
+// @Failure      403 {object} errorResponse
+// @Failure      404 {object} errorResponse
+// @Router       /containers/{id} [get]
 func (h *ContainerHandler) Get(c *gin.Context) {
 	userID := c.GetString("userID")
 	containerID := c.Param("id")
@@ -117,6 +165,19 @@ func (h *ContainerHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, toContainerResponse(ctr))
 }
 
+// Stop godoc
+// @Summary      Stop a container
+// @Description  Stop a running container owned by the authenticated user
+// @Tags         containers
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path string true "Container ID"
+// @Success      200 {object} map[string]string
+// @Failure      401 {object} errorResponse
+// @Failure      403 {object} errorResponse
+// @Failure      404 {object} errorResponse
+// @Failure      500 {object} errorResponse
+// @Router       /containers/{id}/stop [post]
 func (h *ContainerHandler) Stop(c *gin.Context) {
 	userID := c.GetString("userID")
 	containerID := c.Param("id")
@@ -129,6 +190,18 @@ func (h *ContainerHandler) Stop(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "stopped"})
 }
 
+// Delete godoc
+// @Summary      Delete a container
+// @Description  Remove a container (from Docker and the database) owned by the authenticated user
+// @Tags         containers
+// @Security     BearerAuth
+// @Param        id path string true "Container ID"
+// @Success      204 "No Content"
+// @Failure      401 {object} errorResponse
+// @Failure      403 {object} errorResponse
+// @Failure      404 {object} errorResponse
+// @Failure      500 {object} errorResponse
+// @Router       /containers/{id} [delete]
 func (h *ContainerHandler) Delete(c *gin.Context) {
 	userID := c.GetString("userID")
 	containerID := c.Param("id")
