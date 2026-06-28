@@ -76,6 +76,7 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 | `FileService.Upload` 簽名只收 `io.Reader` + 純量參數，不收 `*multipart.FileHeader` | Use Case 層不該知道「這次上傳是透過 HTTP multipart」這件事，由 Handler（Interface Adapters 層）負責把 HTTP 特有的型別轉換成跟來源無關的普通參數 |
 | `ContainerService.CreateAsync` 重用既有的同步 `Create`，包一層 goroutine | 長耗時的容器建立不用讓 HTTP request 卡住等待；背景工作直接呼叫已經寫好、已經測過的 `Create`，不重複實作一份建立邏輯 |
 | goroutine 拿 `entity.Job` 的「副本」而非跟呼叫者共用同一個指標 | `go test -race` 抓到的真實 data race：原本同一個 `*entity.Job` 指標同時被「回傳給呼叫者」跟「背景 goroutine 持續寫入」兩邊共用，沒有同步機制；修法是讓 goroutine 操作自己的副本，呼叫者拿到的指標之後不會再被修改 |
+| Graceful Shutdown 的關閉順序：HTTP server → `ContainerService.Wait()` → `LogManager.Close()` | 後兩者都是「背景仍可能在寫東西」的元件；如果 log 系統先關，HTTP shutdown 或容器背景工作還在跑時呼叫 `WriteLog` 會對已關閉的 channel 寫入而 panic，所以一定要最後關 |
 
 ---
 
@@ -152,8 +153,8 @@ GET    /api/v1/jobs/{id}               # 查詢非同步任務狀態：pending/r
 - [x] Swagger API 文檔（swaggo）：Auth / Container / File / Job 全部 endpoint 都有 annotation，UI 在 `/swagger/index.html`
 - [x] **[進階] 非同步任務處理**：`ContainerService.CreateAsync` 立刻回傳 Job（`202`），背景 goroutine 跑實際建立流程，狀態 `pending → running → success/failed`；`GET /jobs/{id}` 查詢進度；`sync.WaitGroup` 追蹤 in-flight 工作，為 Graceful Shutdown 預留掛勾（已驗證端到端，含單元測試，`-race` 乾淨）
 - [x] **Task 2：可擴展日誌管理系統**（`internal/logger/`）：`LogEntry`/`LogWriter`/`LogReader`/`LogHandler` 四個介面 + `LogManager`；可插拔儲存（`FileLogStore` JSON Lines / `InMemoryLogStore`）、分級過濾、channel + 單一背景 goroutine 的非同步寫入（保證順序）、`RegisterLogHandler` 擴展點、結構化 JSON 輸出（[進階] 已實作，Zero-Allocation [進階] 設計方向寫在文檔未實作）。整合為 Task 1 的 `LoggingMiddleware`，已驗證端到端、含單元測試與可執行範例。設計文檔見 [`internal/logger/DESIGN.md`](internal/logger/DESIGN.md)
+- [x] **[加分] Graceful Shutdown**：`http.Server` + 監聽 `SIGINT`/`SIGTERM`，關閉順序為 `srv.Shutdown`（等現有 request 做完，10 秒逾時）→ `ContainerService.Wait()`（等背景非同步建立容器的工作做完）→ `LogManager.Close()`（最後才關，避免對已關閉的 channel 寫入而 panic）。已驗證：故意在容器非同步建立中送出關閉訊號，程式等它真正跑完（Job 狀態 `success`、容器確實建立）才退出
 
 ### 待完成
 - [ ] 補齊單元測試與集成測試（Handler 層、Repository 層目前還沒有測試）
-- [ ] Graceful Shutdown（加分項）
 - [ ] 並發控制（Concurrency Control，進階，時間允許才做）

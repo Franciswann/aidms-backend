@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Franciswann/aidms-backend/configs"
 	_ "github.com/Franciswann/aidms-backend/docs"
@@ -104,7 +109,31 @@ func main() {
 	jobs.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 	jobs.GET("/:id", jobHandler.Get)
 
-	if err := r.Run(fmt.Sprintf(":%s", cfg.ServerPort)); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", cfg.ServerPort),
+		Handler: r,
 	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("failed to start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("shutdown signal received, draining in-flight work...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("server shutdown did not complete cleanly: %v", err)
+	}
+
+	containerService.Wait()
+	logManager.Close()
+
+	log.Println("shutdown complete")
 }
