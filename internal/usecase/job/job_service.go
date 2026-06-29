@@ -1,3 +1,6 @@
+// Package job implements read access to asynchronous job records, scoped
+// to the owning user. Jobs themselves are created and updated by the
+// container package as it runs background work.
 package job
 
 import (
@@ -9,6 +12,7 @@ import (
 
 var ErrForbidden = errors.New("you do not have access to this job")
 
+// JobService implements read access to asynchronous job records.
 type JobService struct {
 	repo domainrepo.JobRepository
 }

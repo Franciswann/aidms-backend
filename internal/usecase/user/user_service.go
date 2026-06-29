@@ -1,3 +1,5 @@
+// Package user implements registration and login use cases: password
+// hashing and JWT issuance.
 package user
 
 import (
@@ -16,6 +18,7 @@ var (
 	ErrInvalidCredentials     = errors.New("invalid email or password")
 )
 
+// UserService implements the registration and login use cases.
 type UserService struct {
 	userRepo  domainrepo.UserRepository
 	jwtSecret string

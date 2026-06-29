@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// JobHandler exposes the asynchronous job status endpoint.
 type JobHandler struct {
 	jobService *job.JobService
 }

@@ -1,3 +1,6 @@
+// Package container implements container lifecycle use cases: create
+// (synchronously and as a background job), start, stop, delete, and list,
+// each scoped to the owning user.
 package container
 
 import (
@@ -17,6 +20,7 @@ var (
 	ErrForbidden = errors.New("you do not have access to this container")
 )
 
+// ContainerService implements the container management use cases.
 type ContainerService struct {
 	runtime domainrepo.ContainerRuntime
 	repo    domainrepo.ContainerRepository

@@ -1,3 +1,6 @@
+// Package logger is a pluggable, asynchronous logging system: storage
+// (file or in-memory), severity filtering, and extension hooks are all
+// swappable behind small interfaces. See DESIGN.md for the full rationale.
 package logger
 
 import (

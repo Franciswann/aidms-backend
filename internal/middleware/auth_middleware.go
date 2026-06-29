@@ -1,3 +1,5 @@
+// Package middleware provides Gin middleware shared across routes: JWT
+// authentication and structured request logging.
 package middleware
 
 import (

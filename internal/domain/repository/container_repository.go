@@ -2,6 +2,7 @@ package repository
 
 import "github.com/Franciswann/aidms-backend/internal/domain/entity"
 
+// ContainerRepository persists and retrieves containers.
 type ContainerRepository interface {
 	Save(container *entity.Container) error
 	Update(container *entity.Container) error

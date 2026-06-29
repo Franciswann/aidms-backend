@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// UserHandler exposes the registration and login endpoints.
 type UserHandler struct {
 	userService *user.UserService
 }

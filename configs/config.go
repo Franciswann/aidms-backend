@@ -1,3 +1,5 @@
+// Package configs loads application configuration from environment
+// variables (with an optional .env file for local development).
 package configs
 
 import (

@@ -1,3 +1,5 @@
+// Package file implements file upload/list/delete use cases, scoped to the
+// owning user.
 package file
 
 import (
@@ -15,6 +17,7 @@ import (
 
 var ErrForbidden = errors.New("you do not have access to this file")
 
+// FileService implements the file upload/list/delete use cases.
 type FileService struct {
 	repo        domainrepo.FileRepository
 	storagePath string

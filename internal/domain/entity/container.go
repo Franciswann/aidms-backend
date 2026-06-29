@@ -1,3 +1,5 @@
+// Package entity holds the Domain layer's data types - plain structs with
+// no third-party dependencies, shared by every other layer.
 package entity
 
 import "time"

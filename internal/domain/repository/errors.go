@@ -1,3 +1,6 @@
+// Package repository declares the persistence and runtime contracts the
+// Use Case layer depends on. Concrete implementations live in
+// internal/repository (GORM) and internal/docker (Docker SDK).
 package repository
 
 import "errors"

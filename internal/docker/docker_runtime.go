@@ -1,3 +1,5 @@
+// Package docker implements domainrepo.ContainerRuntime against a real
+// Docker daemon via the Docker SDK for Go.
 package docker
 
 import (

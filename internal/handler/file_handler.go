@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// FileHandler exposes the file upload/list/delete endpoints.
 type FileHandler struct {
 	fileService *file.FileService
 }

@@ -1,4 +1,7 @@
 // container_repository.go
+
+// Package repository implements the Domain layer's repository interfaces
+// on top of GORM and PostgreSQL.
 package repository
 
 import (

@@ -163,4 +163,4 @@ GET    /api/v1/jobs/{id}               # 查詢非同步任務狀態：pending/r
 - [x] **Handler 層測試（代表範例）**：`ContainerHandler` 透過 `httptest` + `gin.TestMode` + 自定義 `containerUsecase` 介面（讓 `ContainerHandler` 依賴介面而非 `*container.ContainerService` 具體型別，跟 Repository/ContainerRuntime 同一套 DIP 模式）注入 mock，涵蓋成功路徑、400（binding 失敗）、404/403/500（`handleServiceError` 的三個分支）。其餘 3 個 Handler 因邏輯結構雷同，目前未逐一補測試
 
 ### 待完成
-- [ ] 並發控制（Concurrency Control，進階，時間允許才做）
+- [ ] **[進階] 並發控制（Concurrency Control）**：尚未實作。同一個 container 目前可能同時被兩個請求 `Start`/`Stop`/`Delete`，沒有互斥保護。設計方向：在 `ContainerService` 內加一個 `sync.Map[string]*sync.Mutex`（key 是 container ID），進入 `Start`/`Stop`/`Delete` 前用 `LoadOrStore` 拿到該 container 專屬的鎖、`Lock()`/`defer Unlock()`，讓同一個 container 的操作互斥序列化，不同 container 之間則完全不受影響、可以平行執行。之所以不用單一個全域 `sync.Mutex`，是因為那樣會讓「使用者 A 操作 container 1」跟「使用者 B 操作 container 2」這種完全無關的請求互相卡住，犧牲不必要的並行性。

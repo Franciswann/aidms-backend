@@ -1,3 +1,5 @@
+// Package handler adapts HTTP requests to Use Case calls and Use Case
+// results back to HTTP responses (Gin).
 package handler
 
 import (
@@ -24,6 +26,7 @@ type containerUsecase interface {
 	Delete(userID, containerID string) error
 }
 
+// ContainerHandler exposes the container management endpoints.
 type ContainerHandler struct {
 	containerService containerUsecase
 }
