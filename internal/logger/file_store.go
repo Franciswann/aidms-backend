@@ -11,8 +11,7 @@ import (
 )
 
 // jsonLogEntry is the on-disk shape: one of these, JSON-encoded, per line
-// (JSON Lines format). This is what satisfies the PDF's "structured
-// logging" requirement - each line is independently parseable JSON, which
+// (JSON Lines format) - each line is independently parseable JSON, which
 // is what tools like jq, Elasticsearch/Loki ingestion, etc. expect.
 type jsonLogEntry struct {
 	Timestamp time.Time              `json:"timestamp"`

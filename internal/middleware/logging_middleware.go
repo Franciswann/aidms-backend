@@ -8,7 +8,7 @@ import (
 )
 
 // LoggingMiddleware records one structured entry per request via the
-// Task 2 LogManager - this is the "整合進 Task 1" integration point.
+// internal/logger LogManager, replacing Gin's default access log.
 func LoggingMiddleware(manager *logger.LogManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
