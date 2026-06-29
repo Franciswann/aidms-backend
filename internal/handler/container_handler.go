@@ -12,11 +12,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ContainerHandler struct {
-	containerService *container.ContainerService
+// containerUsecase is the subset of ContainerService's methods this handler
+// calls. Defined here, on the consumer side, so tests can inject a fake
+// implementation without a real Docker daemon or database.
+type containerUsecase interface {
+	CreateAsync(userID, image, name string) (*entity.Job, error)
+	List(userID string) ([]*entity.Container, error)
+	Get(userID, containerID string) (*entity.Container, error)
+	Start(userID, containerID string) error
+	Stop(userID, containerID string) error
+	Delete(userID, containerID string) error
 }
 
-func NewContainerHandler(containerService *container.ContainerService) *ContainerHandler {
+type ContainerHandler struct {
+	containerService containerUsecase
+}
+
+func NewContainerHandler(containerService containerUsecase) *ContainerHandler {
 	return &ContainerHandler{containerService: containerService}
 }
 

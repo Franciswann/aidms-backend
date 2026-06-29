@@ -52,10 +52,10 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 │   ├── handler/                   # Gin HTTP Handler
 │   ├── middleware/                # 日誌、認證、錯誤處理中間件
 │   └── logger/                    # 可擴展日誌管理系統（Task 2）
-├── pkg/apperror/                  # 共用錯誤定義
-├── test/                          # 集成測試
 └── docker-compose.yml             # 本機 PostgreSQL
 ```
+
+集成測試跟被測程式碼放在同一個套件目錄下，檔名以 `_integration_test.go` 結尾並加上 `//go:build integration`（例如 `internal/repository/user_repository_integration_test.go`），預設 `go test ./...` 不會執行，需連線真實 PostgreSQL 時才用 `go test -tags=integration ./...` 執行。
 
 ### 關鍵設計決策
 
@@ -77,6 +77,8 @@ Domain                   internal/domain/entity/, internal/domain/repository/
 | `ContainerService.CreateAsync` 重用既有的同步 `Create`，包一層 goroutine | 長耗時的容器建立不用讓 HTTP request 卡住等待；背景工作直接呼叫已經寫好、已經測過的 `Create`，不重複實作一份建立邏輯 |
 | goroutine 拿 `entity.Job` 的「副本」而非跟呼叫者共用同一個指標 | `go test -race` 抓到的真實 data race：原本同一個 `*entity.Job` 指標同時被「回傳給呼叫者」跟「背景 goroutine 持續寫入」兩邊共用，沒有同步機制；修法是讓 goroutine 操作自己的副本，呼叫者拿到的指標之後不會再被修改 |
 | Graceful Shutdown 的關閉順序：HTTP server → `ContainerService.Wait()` → `LogManager.Close()` | 後兩者都是「背景仍可能在寫東西」的元件；如果 log 系統先關，HTTP shutdown 或容器背景工作還在跑時呼叫 `WriteLog` 會對已關閉的 channel 寫入而 panic，所以一定要最後關 |
+| Repository 集成測試用 `tx := db.Begin()` + `defer tx.Rollback()`，不用 `t.Cleanup` 手動刪資料 | `*gorm.DB` 跟 `db.Begin()` 回的 transaction 是同一個型別，Repository 不需要為了測試改任何 production code；只要不呼叫 `Commit()`，測試裡的所有寫入保證不會真正留在資料庫，比手動對應每筆 insert 的清理動作更不容易出錯 |
+| `ContainerHandler` 依賴 `handler` package 自己定義的 `containerUsecase` 介面，而非 `*container.ContainerService` 具體型別 | 跟 Repository／`ContainerRuntime` 同一套 DIP：消費端（Handler）只定義自己用得到的方法，測試時可以注入 mock，不需要真的連 Docker daemon 或資料庫；`*container.ContainerService` 本來就實作了這些方法，`main.go` 的組裝完全不用改 |
 
 ---
 
@@ -103,8 +105,11 @@ EOF
 # 4. 啟動服務
 go run ./cmd/api
 
-# 5. 執行測試
+# 5. 執行單元測試
 go test ./...
+
+# 6. 執行集成測試（需要 PostgreSQL 已啟動）
+go test -tags=integration ./...
 ```
 
 啟動後可以打開 `http://localhost:8080/swagger/index.html` 看互動式 API 文檔，或 `http://localhost:8080/health` 確認服務存活。
@@ -154,7 +159,8 @@ GET    /api/v1/jobs/{id}               # 查詢非同步任務狀態：pending/r
 - [x] **[進階] 非同步任務處理**：`ContainerService.CreateAsync` 立刻回傳 Job（`202`），背景 goroutine 跑實際建立流程，狀態 `pending → running → success/failed`；`GET /jobs/{id}` 查詢進度；`sync.WaitGroup` 追蹤 in-flight 工作，為 Graceful Shutdown 預留掛勾（已驗證端到端，含單元測試，`-race` 乾淨）
 - [x] **Task 2：可擴展日誌管理系統**（`internal/logger/`）：`LogEntry`/`LogWriter`/`LogReader`/`LogHandler` 四個介面 + `LogManager`；可插拔儲存（`FileLogStore` JSON Lines / `InMemoryLogStore`）、分級過濾、channel + 單一背景 goroutine 的非同步寫入（保證順序）、`RegisterLogHandler` 擴展點、結構化 JSON 輸出（[進階] 已實作，Zero-Allocation [進階] 設計方向寫在文檔未實作）。整合為 Task 1 的 `LoggingMiddleware`，已驗證端到端、含單元測試與可執行範例。設計文檔見 [`internal/logger/DESIGN.md`](internal/logger/DESIGN.md)
 - [x] **[加分] Graceful Shutdown**：`http.Server` + 監聽 `SIGINT`/`SIGTERM`，關閉順序為 `srv.Shutdown`（等現有 request 做完，10 秒逾時）→ `ContainerService.Wait()`（等背景非同步建立容器的工作做完）→ `LogManager.Close()`（最後才關，避免對已關閉的 channel 寫入而 panic）。已驗證：故意在容器非同步建立中送出關閉訊號，程式等它真正跑完（Job 狀態 `success`、容器確實建立）才退出
+- [x] **Repository 集成測試**：User / Container / File / Job 四個 repository 對真實 PostgreSQL 驗證 `Save`/`FindByXxx`/`Update`/`Delete` 與 `ErrNotFound` 轉換。檔名以 `_integration_test.go` 結尾並加 `//go:build integration`，預設 `go test ./...` 不會跑；每個測試包在一個 DB transaction 裡，結束時 `Rollback`，不會在資料庫留下任何測試資料，也不需要手動清理。執行：`go test -tags=integration ./internal/repository/...`
+- [x] **Handler 層測試（代表範例）**：`ContainerHandler` 透過 `httptest` + `gin.TestMode` + 自定義 `containerUsecase` 介面（讓 `ContainerHandler` 依賴介面而非 `*container.ContainerService` 具體型別，跟 Repository/ContainerRuntime 同一套 DIP 模式）注入 mock，涵蓋成功路徑、400（binding 失敗）、404/403/500（`handleServiceError` 的三個分支）。其餘 3 個 Handler 因邏輯結構雷同，目前未逐一補測試
 
 ### 待完成
-- [ ] 補齊單元測試與集成測試（Handler 層、Repository 層目前還沒有測試）
 - [ ] 並發控制（Concurrency Control，進階，時間允許才做）
