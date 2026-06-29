@@ -26,11 +26,11 @@ A four-layer Clean Architecture, where dependencies only ever point inward and t
 
 ```
 Frameworks & Drivers     cmd/api/main.go, Gin, GORM, Docker SDK, swaggo
-         ↓
+   ↓
 Interface Adapters       internal/handler/, internal/repository/, internal/docker/, internal/middleware/
-    ↓
+   ↓
 Use Cases                internal/usecase/{container,user,file,job}/, internal/logger/
-  ↓
+   ↓
 Domain                   internal/domain/entity/, internal/domain/repository/
 ```
 
