@@ -18,16 +18,6 @@ AIDMS Backend is built with a four-layer Clean Architecture, using dependency in
 | API docs | swaggo/swag |
 | Testing | testify |
 
-## Features
-
-- **Authentication**: register/login, bcrypt password hashing, JWT (HS256) issuance and verification
-- **Container management**: create (asynchronously), start, stop, delete, and list — all scoped to the owning user
-- **Asynchronous jobs**: container creation immediately returns `202` + a Job; the actual work happens in the background and can be polled via `GET /jobs/{id}` (`pending → running → success/failed`)
-- **File upload**: per-user storage directories, server-generated UUID filenames to prevent path traversal
-- **Pluggable logging system**: see [`internal/logger/DESIGN.md`](internal/logger/DESIGN.md) — four core interfaces (`LogEntry`/`LogWriter`/`LogReader`/`LogHandler`), swappable storage (file / in-memory), severity filtering, ordered async writes, structured JSON output
-- **Graceful shutdown**: listens for `SIGINT`/`SIGTERM` and waits for in-flight requests and background jobs to finish before exiting
-- **Swagger API docs**: interactive docs at `/swagger/index.html`
-
 ## Architecture
 
 A four-layer Clean Architecture, where dependencies only ever point inward and the innermost layer imports no third-party packages.
@@ -36,11 +26,11 @@ A four-layer Clean Architecture, where dependencies only ever point inward and t
 
 ```
 Frameworks & Drivers     cmd/api/main.go, Gin, GORM, Docker SDK, swaggo
-        ↓
+         ↓
 Interface Adapters       internal/handler/, internal/repository/, internal/docker/, internal/middleware/
-        ↓
+    ↓
 Use Cases                internal/usecase/{container,user,file,job}/, internal/logger/
-        ↓
+  ↓
 Domain                   internal/domain/entity/, internal/domain/repository/
 ```
 
@@ -67,6 +57,16 @@ Integration tests live next to the code they test, named `*_integration_test.go`
 
 For the full rationale behind each architectural decision (in Chinese), see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+## Features
+
+- **Authentication**: register/login, bcrypt password hashing, JWT (HS256) issuance and verification
+- **Container management**: create (asynchronously), start, stop, delete, and list — all scoped to the owning user
+- **Asynchronous jobs**: container creation immediately returns `202` + a Job; the actual work happens in the background and can be polled via `GET /jobs/{id}` (`pending → running → success/failed`)
+- **File upload**: per-user storage directories, server-generated UUID filenames to prevent path traversal
+- **Pluggable logging system**: see [`internal/logger/DESIGN.md`](internal/logger/DESIGN.md) — four core interfaces (`LogEntry`/`LogWriter`/`LogReader`/`LogHandler`), swappable storage (file / in-memory), severity filtering, ordered async writes, structured JSON output
+- **Graceful shutdown**: listens for `SIGINT`/`SIGTERM` and waits for in-flight requests and background jobs to finish before exiting
+- **Swagger API docs**: interactive docs at `/swagger/index.html`
+
 ## Installation
 
 ### Prerequisites
@@ -84,9 +84,17 @@ go mod download
 
 # 3. Create a .env file (JWT_SECRET is required, everything else has a default)
 cat > .env <<EOF
-JWT_SECRET=please-change-me
+JWT_SECRET=dev-only-do-not-use-in-prod
 EOF
 ```
+
+Confirm PostgreSQL is healthy before moving on:
+
+```bash
+docker-compose ps
+```
+
+![docker-compose ps](docs/images/docker-compose-ps.png)
 
 ## Quick Start
 
@@ -94,20 +102,29 @@ EOF
 go run ./cmd/api
 ```
 
-Once it's running, open **`http://localhost:8080/swagger/index.html`** for the interactive API docs — **strongly recommended** over raw curl commands, since you can authorize once with a JWT and click through every endpoint from the browser. Or check liveness with:
+Once it's running, open **`http://localhost:8080/swagger/index.html`** for the interactive API docs — **strongly recommended** over raw curl commands, since you can authorize once with a JWT and click through every endpoint from the browser.
+
+To quickly check the server is alive:
 
 ```bash
 curl -i http://localhost:8080/health
 ```
 
-Or walk through the full flow with curl:
+![health check](docs/images/health-check.png)
+
+You can also exercise the full flow with curl. The commands below extract values from JSON responses with [`jq`](https://jqlang.github.io/jq/) — install it first if you don't have it:
+
+```bash
+brew install jq     # macOS (requires Homebrew: https://brew.sh)
+sudo apt install jq # Debian/Ubuntu
+```
 
 ```bash
 # Register
 curl -i -X POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' \
   -d '{"email":"demo@example.com","password":"password123"}'
 
-# Log in and store the JWT (requires jq: brew install jq / apt install jq)
+# Log in and store the JWT
 TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"demo@example.com","password":"password123"}' | jq -r .token)
 echo "Token: $TOKEN"
@@ -121,6 +138,12 @@ JOB_ID=$(echo "$JOB" | jq -r .id)
 # Poll the job until it finishes (pending -> running -> success/failed)
 curl -i localhost:8080/api/v1/jobs/$JOB_ID -H "Authorization: Bearer $TOKEN"
 ```
+
+### Graceful shutdown
+
+To see graceful shutdown in action, run the container-creation request above, then immediately switch to the terminal running `go run ./cmd/api` and press `Ctrl+C` while the job is still in flight. The server waits for the in-flight job to finish before exiting:
+
+![Graceful shutdown](docs/images/graceful-shutdown.png)
 
 ## API Documentation
 
@@ -161,8 +184,11 @@ go test -race ./...
 ```
 ![Integration tests](docs/images/integration-test.png)
 
-
 Coverage includes: unit tests for all four Use Case services (User/Container/File/Job), integration tests for all four repositories against real PostgreSQL, an HTTP-layer test for `ContainerHandler` (`httptest` + a mock usecase), and tests for `internal/logger`'s async write ordering and severity filtering.
+
+Use Case layer coverage: 73–100% across all four services (`go test -cover ./...`)
+
+![Use Case layer coverage](docs/images/usecase-coverage.png)
 
 ## Roadmap
 
