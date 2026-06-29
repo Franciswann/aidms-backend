@@ -94,24 +94,32 @@ EOF
 go run ./cmd/api
 ```
 
-Once it's running, open `http://localhost:8080/swagger/index.html` for the interactive API docs, or `http://localhost:8080/health` to check liveness.
+Once it's running, open **`http://localhost:8080/swagger/index.html`** for the interactive API docs — **strongly recommended** over raw curl commands, since you can authorize once with a JWT and click through every endpoint from the browser. Or check liveness with:
+
+```bash
+curl -i http://localhost:8080/health
+```
 
 Or walk through the full flow with curl:
 
 ```bash
-# Register + log in
-curl -X POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' \
+# Register
+curl -i -X POST localhost:8080/api/v1/auth/register -H 'Content-Type: application/json' \
   -d '{"email":"demo@example.com","password":"password123"}'
 
+# Log in and store the JWT (requires jq: brew install jq / apt install jq)
 TOKEN=$(curl -s -X POST localhost:8080/api/v1/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"demo@example.com","password":"password123"}' | jq -r .token)
+echo "Token: $TOKEN"
 
 # Create a container (asynchronous - returns 202 + a Job immediately)
-curl -X POST localhost:8080/api/v1/containers -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d '{"image":"alpine:latest","name":"demo"}'
+JOB=$(curl -s -X POST localhost:8080/api/v1/containers -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"image":"alpine:latest","name":"demo"}')
+echo "$JOB"
+JOB_ID=$(echo "$JOB" | jq -r .id)
 
-# Poll the job by the id returned above
-curl localhost:8080/api/v1/jobs/{job_id} -H "Authorization: Bearer $TOKEN"
+# Poll the job until it finishes (pending -> running -> success/failed)
+curl -i localhost:8080/api/v1/jobs/$JOB_ID -H "Authorization: Bearer $TOKEN"
 ```
 
 ## API Documentation
@@ -135,6 +143,7 @@ DELETE /api/v1/files/{id}
 
 GET    /api/v1/jobs/{id}               # poll async job status: pending/running/success/failed
 ```
+![Swagger UI](docs/images/swagger-ui.png)
 
 Every route except `/auth/*` requires an `Authorization: Bearer {token}` header with the JWT from login.
 
@@ -150,6 +159,8 @@ go test -tags=integration ./...
 # With the race detector
 go test -race ./...
 ```
+![Integration tests](docs/images/integration-test.png)
+
 
 Coverage includes: unit tests for all four Use Case services (User/Container/File/Job), integration tests for all four repositories against real PostgreSQL, an HTTP-layer test for `ContainerHandler` (`httptest` + a mock usecase), and tests for `internal/logger`'s async write ordering and severity filtering.
 

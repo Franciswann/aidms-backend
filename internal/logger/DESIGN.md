@@ -71,7 +71,7 @@ logManager := logger.NewLogManager(logStore, logStore, logger.LogLevel(cfg.LogMi
 r.Use(middleware.LoggingMiddleware(logManager))
 ```
 
-這展示了這套日誌系統不是一個孤立的練習題，而是真的能力裝進主服務裡，取代/補強 Gin 預設的 access log。
+這套日誌系統直接裝進主服務裡，取代/補強 Gin 預設的 access log，不是獨立於主服務之外的模組。
 
 ## 測試與範例
 
