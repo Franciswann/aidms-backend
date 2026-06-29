@@ -22,7 +22,7 @@ AIDMS Backend is built with a four-layer Clean Architecture, using dependency in
 
 A four-layer Clean Architecture, where dependencies only ever point inward and the innermost layer imports no third-party packages.
 
-<!-- TODO: architecture diagram -->
+![aidms_clean_architecture](docs/images/aidms_clean_architecture.png)
 
 ```
 Frameworks & Drivers     cmd/api/main.go, Gin, GORM, Docker SDK, swaggo
