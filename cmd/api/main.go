@@ -56,14 +56,14 @@ func main() {
 	userService := user.NewUserService(userRepo, cfg.JWTSecret)
 	userHandler := handler.NewUserHandler(userService)
 
-	dockerRuntime, err := docker.NewDockerRuntime()
-	if err != nil {
-		log.Fatalf("failed to create docker runtime: %v", err)
-	}
 	jobRepo := repository.NewJobRepository(db)
 	jobService := job.NewJobService(jobRepo)
 	jobHandler := handler.NewJobHandler(jobService)
 
+	dockerRuntime, err := docker.NewDockerRuntime()
+	if err != nil {
+		log.Fatalf("failed to create docker runtime: %v", err)
+	}
 	containerRepo := repository.NewContainerRepository(db)
 	containerService := container.NewContainerService(dockerRuntime, containerRepo, jobRepo)
 	containerHandler := handler.NewContainerHandler(containerService)
